@@ -53,6 +53,8 @@
 #'        improvement in log-likelihood is smaller than this threshold
 #'        (default: 0).
 #' @param seed Seed of the random number generator for the inner folds.
+#' @param verbose Whether the variable chosen at each iteration should be
+#'        printed out (default: \code{TRUE}).
 #'
 #' @return
 #' An object of class \code{fs} containing the following fields:
@@ -94,7 +96,7 @@ forward.selection <- function(x, y, init.model, family,
                               sel.crit=c("paired.test", "total.loglik", "both"),
                               num.filter=0, filter.ignore=NULL,
                               num.inner.folds=30, max.iters=15, max.pval=0.5,
-                              min.llk.diff=0, seed=50) {
+                              min.llk.diff=0, seed=50, verbose=TRUE) {
   univ.glm <- function(model, xy.train, xy.test) {
     regr <- glm(model, data=xy.train, family=family)
     y.pred <- predict(regr, newdata=xy.test, type="response")
@@ -125,39 +127,17 @@ forward.selection <- function(x, y, init.model, family,
     args <- c("test", "sel.crit", "num.filter", "filter.ignore",
               "num.inner.folds", "max.iters", "max.pval", "min.llk.diff", "seed")
     args <- as.list(parent.env(environment()))[args]
-
-    ## for arguments with multiple default values keep only the first, which
-    ## is the one that is used
-    lapply(args, head, n=1)
+    return(args)
   }
 
   ## argument checks
   if (nrow(x) != length(y))
     stop("Mismatched dimensions.")
   y <- validate.outcome(y)
-  if (is.null(choose.from))
-    choose.from <- seq(ncol(x))
-  else {
-    if (is.integer(choose.from)) {
-      if (min(choose.from) < 1 || max(choose.from) > ncol(x))
-        stop("choose.from contains out of bound indices.")
-    }
-    else if (is.character(choose.from)) {
-      choose.from <- match(choose.from, colnames(x))
-      if (any(is.na(choose.from)))
-        stop("choose.from contains names that cannot be matched.")
-    }
-    else
-      stop("choose.from should be an integer or character vector.")
-  }
-  family <- validate.family(family)
-  if (family$family == "binomial") {
-    if (length(table(y)) != 2)
-      stop("More than two classes in y with family=binomial().")
-    if (any(y < 0 | y > 1))
-      stop("Values in y must be between 0 and 1.")
-  }
-  pval.test <- list(t=t.test, wilcoxon=wilcox.test)[[match.arg(test)]]
+  choose.from <- validate.choose.from(choose.from, x)
+  family <- validate.family(family, y)
+  test <- match.arg(test)
+  pval.test <- list(t=t.test, wilcoxon=wilcox.test)[[test]]
   sel.crit <- match.arg(sel.crit)
   if (num.inner.folds < 5)
     stop("num.inner.folds should be at least 5.")
@@ -174,12 +154,12 @@ forward.selection <- function(x, y, init.model, family,
 
   ## check that all variables exist in the dataframe of predictors
   var.match <- match(init.vars, colnames(x))
-  if (any(is.na(var.match)))
+  if (anyNA(var.match))
     stop("'", paste(init.vars[is.na(var.match)], collapse="', '"),
          "' not present in x.")
 
   ## check that there is no missingness in the initial model
-  if (any(is.na(x[, init.vars])))
+  if (anyNA(x[, init.vars]))
     stop("Missing values in the variables of the initial model.")
 
   ## create the inner folds
@@ -196,7 +176,6 @@ forward.selection <- function(x, y, init.model, family,
 
   ## limit the number of variables to choose from
   keep.vars <- union(choose.from, match(init.vars, colnames(x)))
-  keep.vars <- keep.vars[!is.na(keep.vars)] # remove NAs from interaction terms
   x <- x[, keep.vars]
 
   ## filtering according to association with outcome
@@ -206,24 +185,26 @@ forward.selection <- function(x, y, init.model, family,
       stop("num.filter can only be used with family=binomial().")
     if (num.filter >= ncol(x))
       stop("num.filter cannot exceed the number of available predictors.")
+    if (!is.null(filter.ignore) && !is.character(filter.ignore))
+      stop("filter.ignore should be a character vector or NULL.")
 
     ## run the filter on the training part of all inner folds
-    all.filt.idx <- NULL
+    fold <- NULL   # silence a note raised by R CMD check
     ignore.vars <- c(init.vars, filter.ignore)
-    for (fold in 1:num.inner.folds) {
+    all.filt.idx <- foreach(fold=1:num.inner.folds, .combine=c) %dopar% {
 
       train.idx <- setdiff(seq(nrow(x)), folds[[fold]])
       x.train <- x[train.idx, ]
       y.train <- y[train.idx]
       filt.idx <- filter.predictors(x.train, y.train, num.filter,
                                     ignore=ignore.vars)
-      all.filt.idx <- c(all.filt.idx, filt.idx)
     }
 
     ## keep the union of the variables retained in the inner folds
     filt.idx <- sort(table(all.filt.idx), decreasing=TRUE)
     filt.idx <- as.integer(names(filt.idx))[1:num.filter]
     keep.idx <- union(match(ignore.vars, colnames(x)), filt.idx)
+    keep.idx <- keep.idx[!is.na(keep.idx)]
     x <- x[, keep.idx]
   }
 
@@ -261,9 +242,7 @@ forward.selection <- function(x, y, init.model, family,
     }
 
     ## collect all validation log-likelihoods
-    all.llk <- NULL
-    for (fold in 1:num.inner.folds)
-      all.llk <- cbind(all.llk, res.inner[[fold]][, 3])
+    all.llk <- sapply(res.inner, function(z) z[, "valid.llk"])
     all.iter[[iter]] <- all.llk
     inner.stats <- data.frame(p.value=paired.pvals(all.llk, pval.test),
                               total.llk=rowSums(all.llk[-1, , drop=FALSE]))
@@ -302,7 +281,8 @@ forward.selection <- function(x, y, init.model, family,
 
     ## report iteration summary
     diff.llk <- chosen.llk - max(model.llks, na.rm=TRUE)
-    report.iter(iter, chosen.var, chosen.pval, chosen.llk, diff.llk)
+    if (verbose)
+      report.iter(iter, chosen.var, chosen.pval, chosen.llk, diff.llk)
 
     ## check for early termination
     if (max(chosen.pval) > max.pval)
@@ -377,33 +357,36 @@ forward.selection <- function(x, y, init.model, family,
 #' @export
 nested.forward.selection <- function(x, y, init.model, family, folds, ...) {
 
-  all.res <- list()
+  res <- list()
+  family <- validate.family(family, y)
+  folds <- validate.folds(folds, x)
+  verbose <- isTRUE(list(...)$verbose)
+
   num.folds <- length(folds)
   for (fold in 1:num.folds) {
 
-    cat("* Outer Fold", fold, "of", num.folds,
-        "-", format(Sys.time(), "%H:%M"), "\n")
+    if (verbose)
+      cat("* Outer Fold", fold, "of", num.folds,
+          "-", format(Sys.time(), "%H:%M"), "\n")
 
     test.idx <- folds[[fold]]
     train.idx <- setdiff(seq(nrow(x)), test.idx)
     x.train <- x[train.idx, ]; y.train <- y[train.idx]
 
     fs <- forward.selection(x.train, y.train, init.model, family, ...)
-    this.fold <- list(test.idx)
-    model <- nested.glm(x[, fs$fs$vars], y, this.fold,
-                        family=family)[[1]]
+    model <- glm.inner(x[, fs$fs$vars], y, test.idx, family)
     stopifnot(all.equal(model$obs, y[test.idx]))
     panel <- fs$panel
     fs$fs$coef <- NA
-    fs$fs$coef[match(panel, fs$fs$vars)] <- model$coef[panel]
+    fs$fs$coef[match(panel, fs$fs$vars)] <- model$summary[panel, "Estimate"]
     fs$fit <- model$fit
     fs$obs <- model$obs
     fs$test.idx <- test.idx
     fs$model <- model$summary
-    all.res[[fold]] <- fs
+    res[[fold]] <- fs
   }
-  class(all.res) <- "nestfs"
-  return(all.res)
+  class(res) <- "nestfs"
+  return(res)
 }
 
 #' Cross-validated generalized linear models
@@ -416,8 +399,8 @@ nested.forward.selection <- function(x, y, init.model, family, folds, ...) {
 #'
 #' @param x Dataframe of predictors.
 #' @template args-outcome
-#' @template args-folds
 #' @template args-family
+#' @template args-folds
 #' @param store.glm Whether the object produced by \code{glm} should be
 #'        stored (default: \code{FALSE}).
 #'
@@ -425,8 +408,8 @@ nested.forward.selection <- function(x, y, init.model, family, folds, ...) {
 #' A list of length equal to \code{length(folds)}, where each entry contains
 #' the following fields:
 #' \describe{
-#' \item{summary:}{Summary of the fitted model.}
-#' \item{coef:}{Coefficients of the fitted model.}
+#' \item{summary:}{Summary of the coefficients of the model fitted on the
+#'       training observations.}
 #' \item{fit:}{Predicted values for the withdrawn observations.}
 #' \item{obs:}{Observed values for the withdrawn observations.}
 #' \item{test.llk:}{Test log-likelihood.}
@@ -443,35 +426,54 @@ nested.forward.selection <- function(x, y, init.model, family, folds, ...) {
 #' folds <- create.folds(10, nrow(X.diab), seed=1)
 #' base.res <- nested.glm(X.diab[, c("age", "sex", "bmi", "tc",
 #'                                   "ldl", "hdl", "ltg", "glu")],
-#'                        Y.diab, folds, gaussian())
+#'                        Y.diab, gaussian(), folds)
 #'
 #' # close the parallel cluster
 #' stopImplicitCluster()
-#' @importFrom stats as.formula glm predict
 #' @keywords multivariate
 #' @export
-nested.glm <- function(x, y, folds, family, store.glm=FALSE) {
-  stopifnot(all.equal(nrow(x), length(y)))
-  stopifnot(max(unlist(folds)) <= nrow(x))
+nested.glm <- function(x, y, family, folds, store.glm=FALSE) {
+
+  ## argument checks
+  if (nrow(x) != length(y))
+    stop("Mismatched dimensions.")
   y <- validate.outcome(y)
-  family <- validate.family(family)
-  res <- list()
-  for (fold in 1:length(folds)) {
-    if (fold %% 10 == 0)
-      cat("Fold", fold, "\n")
-    idx.test <- folds[[fold]]
-    idx.train <- setdiff(1:nrow(x), idx.test)
-    x.test <- x[idx.test, ]; x.train <- x[idx.train, ]
-    y.test <- y[idx.test];   y.train <- y[idx.train]
-    model <- paste("y.train ~", paste(colnames(x.train), collapse=" + "))
-    regr <- glm(as.formula(model), data=x.train, family=family)
-    y.pred <- predict(regr, newdata=x.test, type="response")
-    loglik <- loglikelihood(family, y.test, y.pred, summary(regr)$dispersion)
-    res[[fold]] <- list(summary=summary(regr), coef=regr$coef,
-                        fit=y.pred, obs=y.test,
-                        test.llk=loglik, test.idx=idx.test)
-    if (store.glm) res[[fold]]$regr <- regr
-  }
+  family <- validate.family(family, y)
+  folds <- validate.folds(folds, x)
+
+  res <- lapply(folds, function(z) glm.inner(x, y, z, family, store.glm))
+  return(res)
+}
+
+
+#' Fit a linear or logistic regression model on a given cross-validation fold
+#'
+#' Fit a model using all predictors provided on the training observations, then
+#' test it on the withdrawn observations.
+#'
+#' @param x Dataframe of predictors containing all and only the variables to be
+#'        used in the model.
+#' @template args-outcome
+#' @param idx.test Indices of observations to withdraw.
+#' @template args-family
+#' @param store.glm Whether the object produced by \code{glm} should be
+#'        stored (default: \code{FALSE}).
+#'
+#' @return
+#' A list of length equal to \code{length(folds)}.
+#'
+#' @importFrom stats as.formula glm predict
+#' @noRd
+glm.inner <- function(x, y, idx.test, family, store.glm=FALSE) {
+  idx.train <- setdiff(1:nrow(x), idx.test)
+  model <- paste("y ~", paste(colnames(x), collapse=" + "))
+  regr <- glm(as.formula(model), data=x, family=family, subset=idx.train)
+  y.pred <- predict(regr, newdata=x[idx.test, ], type="response")
+  y.test <- y[idx.test]
+  loglik <- loglikelihood(family, y.test, y.pred, summary(regr)$dispersion)
+  res <- list(summary=coefficients(summary(regr)),
+              fit=y.pred, obs=y.test, test.llk=loglik, test.idx=idx.test)
+  if (store.glm) res$regr <- regr
   return(res)
 }
 
@@ -501,7 +503,7 @@ loglikelihood <- function(family, obs, fit, disp) {
 #'
 #' @noRd
 validate.outcome <- function(y) {
-  if (any(is.na(y)))
+  if (anyNA(y))
     stop("Outcome variable contains missing values.", call.=FALSE)
   if (is.character(y))
     stop("Outcome variable cannot be a character vector.", call.=FALSE)
@@ -510,9 +512,10 @@ validate.outcome <- function(y) {
       stop("A factor outcome variable can only have two levels.", call.=FALSE)
     y <- as.integer(y) - 1
   }
-  if (!(is.numeric(y) || is.integer(y) || is.logical(y)))
+  if (!(is.numeric(y) || is.logical(y)))
     stop("Outcome variable of invalid type.", call.=FALSE)
-  return(y)
+
+  return(as.numeric(y))
 }
 
 #' Validate initial model
@@ -533,13 +536,15 @@ validate.init.model <- function(model) {
     model <- y ~ 1
   }
   else if (is.character(model)) {
+    if (any(model == ""))
+      stop("init.model contains an empty string.", call.=FALSE)
     if (length(model) == 1 && grepl("~", model))
       model <- as.formula(model)
     else
       model <- as.formula(paste("y ~", paste(model, collapse= " + ")))
   }
   else if (!is(model, "formula"))
-    stop("init.model specified incorrectly.")
+    stop("init.model specified incorrectly.", call.=FALSE)
 
   ## rename the left-hand side or add it if not present
   model <- update(model, "nestfs_y_ ~ .")
@@ -553,6 +558,7 @@ validate.init.model <- function(model) {
 #' This is inspired by code in \code{\link{glm}}.
 #'
 #' @param family Family argument to test.
+#' @param y Outcome variable.
 #'
 #' @return
 #' A valid family. The function throws an error if the family argument cannot
@@ -560,7 +566,7 @@ validate.init.model <- function(model) {
 #'
 #' @importFrom methods is
 #' @noRd
-validate.family <- function(family) {
+validate.family <- function(family, y) {
   if (missing(family))
     stop("Argument of 'family' is missing.", call.=FALSE)
   if (is.character(family))
@@ -574,7 +580,78 @@ validate.family <- function(family) {
   if (!is(family, "family"))
     stop("Argument of 'family' is not a valid family.", call.=FALSE)
   if (!family$family %in% c("gaussian", "binomial"))
-    stop("Only supported families are 'gaussian' or 'binomial'.", call.=FALSE)
+    stop("Only 'gaussian' and 'binomial' are supported families.", call.=FALSE)
+
+  if (family$family == "binomial") {
+    if (length(table(y)) != 2)
+      stop("y must contain two classes with family=binomial().", call.=FALSE)
+    if (any(y < 0 | y > 1))
+      stop("y must contain 0-1 values with family=binomial().", call.=FALSE)
+  }
 
   return(family)
+}
+
+#' Validate the choose.from argument
+#'
+#' Ensure that the \code{choose.from} argument has been specified correctly.
+#'
+#' @param choose.from Argument to test.
+#' @param x Dataframe of predictors.
+#'
+#' @return
+#' A valid vector of variable indices. The function throws an error if the
+#' argument cannot be used.
+#'
+#' @noRd
+validate.choose.from <- function(choose.from, x) {
+  if (is.null(choose.from))
+    choose.from <- seq(ncol(x))
+  else {
+    if (is.numeric(choose.from)) {
+      if (anyNA(choose.from))
+        stop("choose.from contains missing values.", call.=FALSE)
+      if (length(choose.from) > 0 &&
+          (min(choose.from) < 1 || max(choose.from) > ncol(x)))
+        stop("choose.from contains out of bounds indices.", call.=FALSE)
+      if (any(choose.from != as.integer(choose.from)))
+        stop("choose.from contains floating point values.", call.=FALSE)
+    }
+    else if (is.character(choose.from)) {
+      choose.from <- match(choose.from, colnames(x))
+      if (anyNA(choose.from))
+        stop("choose.from contains names that cannot be matched.", call.=FALSE)
+    }
+    else
+      stop("choose.from should be an integer or character vector.", call.=FALSE)
+  }
+  return(choose.from)
+}
+
+#' Validate the folds argument
+#'
+#' Ensure that the \code{folds} argument has been specified correctly.
+#'
+#' @param folds Argument to test.
+#'
+#' @return
+#' A valid list of folds. The function throws an error if the argument cannot
+#' be used.
+#'
+#' @noRd
+validate.folds <- function(folds, x) {
+  if (!is.list(folds))
+    stop("folds expected to be a list.", call.=FALSE)
+  all.idx <- unlist(folds)
+  if (anyNA(all.idx))
+    stop("folds contains missing values.", call.=FALSE)
+  if (!is.numeric(all.idx))
+    stop("folds contains non-numerical values.", call.=FALSE)
+  if (any(all.idx != as.integer(all.idx)))
+    stop("folds contains non-integer values", call.=FALSE)
+  if (any(table(all.idx) > 1))
+    stop("folds contains repeated indices.", call.=FALSE)
+  if (any(all.idx <= 0 | all.idx > nrow(x)))
+    stop("folds contains out of bounds indices.", call.=FALSE)
+  return(folds)
 }
