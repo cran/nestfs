@@ -22,6 +22,17 @@
 #' enhance the performance of forward selection when the number of available
 #' variables exceeds about 30-40.
 #'
+#' By default variables are selected according to the \code{paired.test}
+#' criterion. At each iteration, the sampling distribution of differences in
+#' validation log-likelihood obtained across all inner cross-validation folds
+#' of the models with and without each additional variable are tested against
+#' the null hypothesis of zero mean (with the alternative hypothesis being
+#' that the model with the additional variable is better). The test is paired
+#' according to the inner folds. Although the training folds are not
+#' independent, the p-value from this test approximates the probability that
+#' including the marker will not decrease the validation log-likelihood
+#' (approximate false discovery rate).
+#'
 #' @template args-forward
 #' @template args-outcome
 #' @template args-family
@@ -31,8 +42,9 @@
 #' @param test Type of statistical paired test to use (ignored if
 #'        \code{sel.crit="total.loglik"}).
 #' @param sel.crit Selection criterion: \code{"paired.test"} chooses the
-#'        variable with best p-value on the paired test indicated by
-#'        \code{test}; \code{"total.loglik"} chooses the variable that provides
+#'        variable with smallest p-value using the paired test specified by
+#'        \code{test} (see \strong{Details}), as long as this is smaller than
+#'        \code{max.pval}; \code{"total.loglik"} picks the variable that gives
 #'        the largest increase in log-likelihood; \code{"both"} attempts to
 #'        combine both previous criteria, choosing the variable that produces
 #'        the largest increase in log-likelihood only among the best 5
@@ -360,7 +372,7 @@ nested.forward.selection <- function(x, y, init.model, family, folds, ...) {
   res <- list()
   family <- validate.family(family, y)
   folds <- validate.folds(folds, x)
-  verbose <- isTRUE(list(...)$verbose)
+  verbose <- isTRUE(list(...)$verbose) || is.null(list(...)$verbose)
 
   num.folds <- length(folds)
   for (fold in 1:num.folds) {
@@ -376,9 +388,20 @@ nested.forward.selection <- function(x, y, init.model, family, folds, ...) {
     fs <- forward.selection(x.train, y.train, init.model, family, ...)
     model <- glm.inner(x[, fs$fs$vars], y, test.idx, family)
     stopifnot(all.equal(model$obs, y[test.idx]))
+
+    ## extract the model coefficients and report them in the forward selection
+    ## object.
+    ## note that factor variables will have names in model$summary that now
+    ## include the level labels: by using pmatch(), we attempt a partial match
+    ## for variable names. this works well if the factor had only two levels;
+    ## however, if the factor had more than two levels, names cannot be matched
+    ## even partially and their coefficient is set to NA (this is better than
+    ## reporting for the whole variable a coefficient that corresponds only to
+    ## one of the available levels).
     panel <- fs$panel
     fs$fs$coef <- NA
-    fs$fs$coef[match(panel, fs$fs$vars)] <- model$summary[panel, "Estimate"]
+    idx.coefs <- pmatch(panel, rownames(model$summary))
+    fs$fs$coef[match(panel, fs$fs$vars)] <- model$summary[idx.coefs, "Estimate"]
     fs$fit <- model$fit
     fs$obs <- model$obs
     fs$test.idx <- test.idx
