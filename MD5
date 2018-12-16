@@ -1,4 +1,4 @@
-6777b7b276e8aa36733c1666b829f252 *DESCRIPTION
+948758363393f031e16cd43faa7acc8d *DESCRIPTION
 b234ee4d69f5fce4486a80fdaf4a4263 *LICENSE
 466a1d58d52630dd7d7cd657afd56bb7 *NAMESPACE
 37523898e668a94fe2f17b8fe82732b1 *NEWS.md
@@ -13,10 +13,10 @@ cf14ebe379fb81f8fe46812fc9f419de *README.md
 7389ad051cabbfbb214f83f4ad3714f2 *man/create.folds.Rd
 6a03d626116e89fcfa75c11ce437b8f7 *man/diabetes.Rd
 99c5e9620b78fe95780c48a0f4ac5a27 *man/filter.predictors.Rd
-54b61e96db5bf873536ad192335d1832 *man/forward.selection.Rd
+62989195e08212e48c43e17d792b1131 *man/forward.selection.Rd
 73d9a1add0cedf9aaf351517cc6d9d49 *man/nested.forward.selection.Rd
 2c4ea0b6bd9dbe15054280d4344b382a *man/nested.glm.Rd
-1359fcfe1cd699036d80c43156aca6b3 *man/nested.performance.Rd
+1eb343e61b326d8bc76a1ccf5fae05c1 *man/nested.performance.Rd
 d3e23160683c70df2f50d76dfc278bba *man/nestfs-package.Rd
 b59b7451cf898f418288edcb675c9a27 *man/summary.fs.Rd
 b0c16e19ca56fa8a4015bb2dbb10c377 *man/summary.nestfs.Rd
