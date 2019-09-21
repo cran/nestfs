@@ -1,7 +1,25 @@
+##=============================================================================
+##
+## Copyright (c) 2013-2019 Marco Colombo
+##
+## This program is free software: you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation, either version 2 of the License, or
+## (at your option) any later version.
+##
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this program.  If not, see <http://www.gnu.org/licenses/>.
+##
+##=============================================================================
+
+
 #' Compare p(x|y=0) and p(x|y=1) using a Kolmogorov-Smirnov test.
 #'
-#' @importFrom dgof ks.test
-#' @importFrom stats ecdf
 #' @noRd
 ks.pval <- function(x, y) {
   is.discrete <- apply(x, 1, function(z) length(unique(z)) < 10)
@@ -25,10 +43,10 @@ ks.pval <- function(x, y) {
 
 #' Filtering of predictors
 #'
-#' Filter the predictors, retaining only the top \code{n}.
+#' Filter the predictors, retaining only the top `n`.
 #'
 #' This performs a univariate test of association of each predictor (not listed
-#' in \code{ignore}) with the outcome, and retains the top \code{n} variables
+#' in `ignore`) with the outcome, and retains the top `n` variables
 #' with smallest p-value according to a Kolmogorov-Smirnov test.
 #'
 #' @param x Design matrix.
