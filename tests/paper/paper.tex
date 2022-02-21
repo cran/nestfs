@@ -1,0 +1,130 @@
+\documentclass[article]{jss}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% declarations for jss.cls %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% almost as usual
+\author{Marco Colombo,
+        Felix Agakov,
+        Paul McKeigue\\
+        University of Edinburgh}
+\title{Cross-Validated (Nested) Forward Selection:\\
+       the \proglang{R} Package \pkg{nestfs}}
+
+%% for pretty printing and a nice hypersummary also set:
+\Plainauthor{Achim Zeileis, Second Author} %% comma-separated
+\Plaintitle{Cross-Validated (Nested) Forward Selection: the R Package nestfs} %% without formatting
+\Shorttitle{\pkg{nestfs}: Cross-Validated (Nested) Forward Selection} %% a short title (if necessary)
+
+%% an abstract and keywords
+\Abstract{
+Forward selection is a well-know technique for constructing a predictive
+model that has the properties of sparsity and interpretability. As for other
+techniques used to solve a prediction problem, it can be easily mis-used
+if its parameters are learned outside of a cross-validation setting, thus
+producing over-optimistic estimates and models that do not generalise well
+in prediction of withdrawn data.
+
+In this paper we present an implementation of forward selection for the
+\proglang{R} programming language based on linear and logistic regression
+which adopts cross-validation as a core
+component of the selection procedure. The \pkg{nestfs} package features
+several selection and termination criteria, and is parallelised over the
+cross-validation folds.
+}
+\Keywords{forward selection, cross-validation, \proglang{R}}
+\Plainkeywords{forward selection, cross-validation, R} %% without formatting
+%% at least one keyword must be supplied
+
+%% publication information
+%% NOTE: Typically, this can be left commented and will be filled out by the technical editor
+%% \Volume{50}
+%% \Issue{9}
+%% \Month{June}
+%% \Year{2012}
+%% \Submitdate{2012-06-04}
+%% \Acceptdate{2012-06-04}
+
+%% The address of (at least) one author should be given
+%% in the following format:
+\Address{
+  Marco Colombo \\
+  Centre for Population Health Sciences\\
+  University of Edinburgh \\
+  Medical School \\
+  Teviot Place \\
+  Edinburgh \\
+  EH8 9AG \\
+  E-mail: \email{m.colombo@ed.ac.uk}\\
+  URL: \url{http://maths.ed.ac.uk/~mcolombo/}
+}
+%% It is also possible to add a telephone and fax number
+%% before the e-mail in the following format:
+%% Telephone: +43/512/507-7103
+%% Fax: +43/512/507-2851
+
+%% for those who use Sweave please include the following line (with % symbols):
+%% need no \usepackage{Sweave.sty}
+
+%% end of declarations %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\begin{document}
+
+%% include your article here, just as usual
+%% Note that you should use the \pkg{}, \proglang{} and \code{} commands.
+
+%\section[About Java]{About \proglang{Java}}
+%% Note: If there is markup in \(sub)section, then it has to be escape as above.
+
+\section{Literature review}
+
+Should describe the history of forward selection: when and why it was
+introduced, what sort of problems it was originally designed to solve.
+
+Talk about techniques that build on it or are comparable to it (stepwise
+selection, backward elimination). Mention other types of parametric or
+non-parametric ways of building a predictive model.
+
+Talk about known advantages (interpretability, sparsity) and disadvantages
+(speed) compared to lasso-type models.
+
+Talk about types of problems for which forward selection struggles: large
+number of predictors, correlated predictors. Talk about how these can be
+solved with filtering, removal of correlated variables.
+
+\section{Software review}
+
+Talk about what other implementations exist, specifically for \proglang{R}.
+
+bootfs
+
+leaps
+
+DAAG
+
+sampleSelection
+
+\section[Introducing nestfs]{Introducing \pkg{nestfs}}
+
+Talk about the general setup: iterations, inner folds, selection criteria,
+termination criteria.
+
+Talk about cross-validation and nested forward selection.
+
+Talk about parallelisation options.
+
+Talk about filtering.
+
+\section{Practical examples}
+
+Using some existing data sets, show how to use the package. Compare and
+contrasts different options on the same data. 
+
+Show what the package saves and reports.
+
+\section{Conclusions}
+
+
+\end{document}
