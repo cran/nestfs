@@ -1,7 +1,7 @@
-7f374fb7dbc5d0877f427c9746aeaea4 *DESCRIPTION
+a5823aa197233c8d406162b611de7c18 *DESCRIPTION
 b234ee4d69f5fce4486a80fdaf4a4263 *LICENSE
 5164bc18eeb38abac7ba526d22c4db8b *NAMESPACE
-4504fb0dcf7c0e0a4dc52e1e959e5a14 *NEWS.md
+9a0e2115a7a4888aff9bcec537e80962 *NEWS.md
 c65c733b3941cd515a19a697103f4bed *R/diabetes.R
 b4c29ef12bda4a64fe5909cae840d144 *R/filtering.R
 dc92d57de7d82242068facac875631a7 *R/helpers.R
@@ -10,7 +10,7 @@ dc92d57de7d82242068facac875631a7 *R/helpers.R
 20117fc1c30937bf1c1fbe2d80911304 *R/nestfs.R
 dfead7af373cf4d10db7d8f0aaba217b *R/summary.R
 f41d95fe609f04316dff7c150fd46490 *README.md
-a17fa5bd938d113fcbd54f5680a4f6ce *build/partial.rdb
+68f609ce081b93eb2d63545a04295076 *build/partial.rdb
 c7b4e5352a5add8c4058595fabba16a0 *data/diabetes.rda
 f1bc41ab8158dd542a37b2a08a524bdd *man/create.folds.Rd
 6a81862eb9066eb2dc10f786cd32c77f *man/diabetes.Rd
@@ -44,5 +44,5 @@ b94d17bfe22dbf3c0568710c1d3cd4d1 *tests/testthat.R
 60b89a81424649dff503a46981752d95 *tests/testthat/dump_forward_selection.R
 14104006710c6b1f453d92f0c7e99d63 *tests/testthat/dump_nested.R
 6d9308f8d9ccd2d26af637139ebc303b *tests/testthat/test_arguments.R
-0639401acae60035bb208b28d651fd5d *tests/testthat/test_forward_selection.R
+1812cf37d85f480a894bebb1b33f4abc *tests/testthat/test_forward_selection.R
 a72d826986dc11e7fbe37df4d6a5d906 *tests/testthat/test_nested.R
